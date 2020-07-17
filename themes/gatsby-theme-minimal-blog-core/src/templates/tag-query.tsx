@@ -13,6 +13,13 @@ export const query = graphql`
         excerpt
         timeToRead
         description
+        banner {
+          childImageSharp {
+            resize(width: 800, quality: 90) {
+              src
+            }
+          }
+        }
         tags {
           name
           slug

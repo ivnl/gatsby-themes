@@ -19,7 +19,7 @@ export const query = graphql`
       timeToRead
       banner {
         childImageSharp {
-          resize(width: 1200, quality: 90) {
+          resize(width: 800, quality: 90) {
             src
           }
         }
