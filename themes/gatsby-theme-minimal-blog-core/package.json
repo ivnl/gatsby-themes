@@ -1,5 +1,5 @@
 {
-  "name": "gatsby-theme-minimal-blog-core",
+  "name": "@ivnl/gatsby-theme-minimal-blog-core",
   "version": "2.3.2",
   "author": "LekoArts <hello@lekoarts.de>",
   "description": "Core Theme for @lekoarts/gatsby-theme-minimal-blog. This theme implements the Post and Page node interfaces and exports templates (+ queries) which you can shadow.",
