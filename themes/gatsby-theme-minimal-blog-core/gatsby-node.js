@@ -1,39 +1,44 @@
-const kebabCase = require(`lodash.kebabcase`)
-const withDefaults = require(`./utils/default-options`)
+const kebabCase = require(`lodash.kebabcase`);
+const withDefaults = require(`./utils/default-options`);
 
-const mdxResolverPassthrough = (fieldName) => async (source, args, context, info) => {
-  const type = info.schema.getType(`Mdx`)
+const mdxResolverPassthrough = (fieldName) => async (
+  source,
+  args,
+  context,
+  info
+) => {
+  const type = info.schema.getType(`Mdx`);
   const mdxNode = context.nodeModel.getNodeById({
     id: source.parent,
-  })
-  const resolver = type.getFields()[fieldName].resolve
+  });
+  const resolver = type.getFields()[fieldName].resolve;
   const result = await resolver(mdxNode, args, context, {
     fieldName,
-  })
-  return result
-}
+  });
+  return result;
+};
 
 // Create general interfaces that you could can use to leverage other data sources
 // The core theme sets up MDX as a type for the general interface
 exports.createSchemaCustomization = ({ actions, schema }, themeOptions) => {
-  const { createTypes, createFieldExtension } = actions
+  const { createTypes, createFieldExtension } = actions;
 
-  const { basePath } = withDefaults(themeOptions)
+  const { basePath } = withDefaults(themeOptions);
 
   const slugify = (source) => {
-    const slug = source.slug ? source.slug : kebabCase(source.title)
+    const slug = source.slug ? source.slug : kebabCase(source.title);
 
-    return `/${basePath}/${slug}`.replace(/\/\/+/g, `/`)
-  }
+    return `/${basePath}/${slug}`.replace(/\/\/+/g, `/`);
+  };
 
   createFieldExtension({
     name: `slugify`,
     extend() {
       return {
         resolve: slugify,
-      }
+      };
     },
-  })
+  });
 
   createFieldExtension({
     name: `mdxpassthrough`,
@@ -43,9 +48,9 @@ exports.createSchemaCustomization = ({ actions, schema }, themeOptions) => {
     extend({ fieldName }) {
       return {
         resolve: mdxResolverPassthrough(fieldName),
-      }
+      };
     },
-  })
+  });
 
   createTypes(`
     interface Post @nodeInterface {
@@ -54,6 +59,8 @@ exports.createSchemaCustomization = ({ actions, schema }, themeOptions) => {
       title: String!
       date: Date! @dateformat
       excerpt(pruneLength: Int = 160): String!
+      url: String
+      isProject: Boolean
       body: String!
       html: String
       timeToRead: Int
@@ -83,6 +90,8 @@ exports.createSchemaCustomization = ({ actions, schema }, themeOptions) => {
       body: String! @mdxpassthrough(fieldName: "body")
       html: String! @mdxpassthrough(fieldName: "html")
       timeToRead: Int @mdxpassthrough(fieldName: "timeToRead")
+      url: String
+      isProject: Boolean
       tags: [PostTag]
       banner: File @fileByRelativePath
       description: String
@@ -115,11 +124,11 @@ exports.createSchemaCustomization = ({ actions, schema }, themeOptions) => {
       title: String!
       slug: String!
     }
-  `)
-}
+  `);
+};
 
 exports.sourceNodes = ({ actions, createContentDigest }, themeOptions) => {
-  const { createNode } = actions
+  const { createNode } = actions;
   const {
     basePath,
     blogPath,
@@ -129,7 +138,7 @@ exports.sourceNodes = ({ actions, createContentDigest }, themeOptions) => {
     externalLinks,
     navigation,
     showLineNumbers,
-  } = withDefaults(themeOptions)
+  } = withDefaults(themeOptions);
 
   const minimalBlogConfig = {
     basePath,
@@ -140,7 +149,7 @@ exports.sourceNodes = ({ actions, createContentDigest }, themeOptions) => {
     externalLinks,
     navigation,
     showLineNumbers,
-  }
+  };
 
   createNode({
     ...minimalBlogConfig,
@@ -153,48 +162,53 @@ exports.sourceNodes = ({ actions, createContentDigest }, themeOptions) => {
       content: JSON.stringify(minimalBlogConfig),
       description: `Options for @lekoarts/gatsby-theme-minimal-blog-core`,
     },
-  })
-}
+  });
+};
 
-exports.onCreateNode = ({ node, actions, getNode, createNodeId, createContentDigest }, themeOptions) => {
-  const { createNode, createParentChildLink } = actions
+exports.onCreateNode = (
+  { node, actions, getNode, createNodeId, createContentDigest },
+  themeOptions
+) => {
+  const { createNode, createParentChildLink } = actions;
 
-  const { postsPath, pagesPath } = withDefaults(themeOptions)
+  const { postsPath, pagesPath } = withDefaults(themeOptions);
 
   // Make sure that it's an MDX node
   if (node.internal.type !== `Mdx`) {
-    return
+    return;
   }
 
   // Create a source field
   // And grab the sourceInstanceName to differentiate the different sources
   // In this case "postsPath" and "pagesPath"
-  const fileNode = getNode(node.parent)
-  const source = fileNode.sourceInstanceName
+  const fileNode = getNode(node.parent);
+  const source = fileNode.sourceInstanceName;
 
   // Check for "posts" and create the "Post" type
   if (node.internal.type === `Mdx` && source === postsPath) {
-    let modifiedTags
+    let modifiedTags;
 
     if (node.frontmatter.tags) {
       modifiedTags = node.frontmatter.tags.map((tag) => ({
         name: tag,
         slug: kebabCase(tag),
-      }))
+      }));
     } else {
-      modifiedTags = null
+      modifiedTags = null;
     }
 
     const fieldData = {
       slug: node.frontmatter.slug ? node.frontmatter.slug : undefined,
       title: node.frontmatter.title,
       date: node.frontmatter.date,
+      url: node.frontmatter.url,
+      isProject: node.frontmatter.isProject,
       tags: modifiedTags,
       banner: node.frontmatter.banner,
       description: node.frontmatter.description,
-    }
+    };
 
-    const mdxPostId = createNodeId(`${node.id} >>> MdxPost`)
+    const mdxPostId = createNodeId(`${node.id} >>> MdxPost`);
 
     createNode({
       ...fieldData,
@@ -208,9 +222,9 @@ exports.onCreateNode = ({ node, actions, getNode, createNodeId, createContentDig
         content: JSON.stringify(fieldData),
         description: `Mdx implementation of the Post interface`,
       },
-    })
+    });
 
-    createParentChildLink({ parent: node, child: getNode(mdxPostId) })
+    createParentChildLink({ parent: node, child: getNode(mdxPostId) });
   }
 
   // Check for "pages" and create the "Page" type
@@ -218,9 +232,9 @@ exports.onCreateNode = ({ node, actions, getNode, createNodeId, createContentDig
     const fieldData = {
       title: node.frontmatter.title,
       slug: node.frontmatter.slug,
-    }
+    };
 
-    const mdxPageId = createNodeId(`${node.id} >>> MdxPage`)
+    const mdxPageId = createNodeId(`${node.id} >>> MdxPage`);
 
     createNode({
       ...fieldData,
@@ -234,24 +248,26 @@ exports.onCreateNode = ({ node, actions, getNode, createNodeId, createContentDig
         content: JSON.stringify(fieldData),
         description: `Mdx implementation of the Page interface`,
       },
-    })
+    });
 
-    createParentChildLink({ parent: node, child: getNode(mdxPageId) })
+    createParentChildLink({ parent: node, child: getNode(mdxPageId) });
   }
-}
+};
 
 // These template are only data-fetching wrappers that import components
-const homepageTemplate = require.resolve(`./src/templates/homepage-query.tsx`)
-const blogTemplate = require.resolve(`./src/templates/blog-query.tsx`)
-const postTemplate = require.resolve(`./src/templates/post-query.tsx`)
-const pageTemplate = require.resolve(`./src/templates/page-query.tsx`)
-const tagTemplate = require.resolve(`./src/templates/tag-query.tsx`)
-const tagsTemplate = require.resolve(`./src/templates/tags-query.tsx`)
+const homepageTemplate = require.resolve(`./src/templates/homepage-query.tsx`);
+const blogTemplate = require.resolve(`./src/templates/blog-query.tsx`);
+const postTemplate = require.resolve(`./src/templates/post-query.tsx`);
+const pageTemplate = require.resolve(`./src/templates/page-query.tsx`);
+const tagTemplate = require.resolve(`./src/templates/tag-query.tsx`);
+const tagsTemplate = require.resolve(`./src/templates/tags-query.tsx`);
 
 exports.createPages = async ({ actions, graphql, reporter }, themeOptions) => {
-  const { createPage } = actions
+  const { createPage } = actions;
 
-  const { basePath, blogPath, tagsPath, formatString } = withDefaults(themeOptions)
+  const { basePath, blogPath, tagsPath, formatString } = withDefaults(
+    themeOptions
+  );
 
   createPage({
     path: basePath,
@@ -259,7 +275,7 @@ exports.createPages = async ({ actions, graphql, reporter }, themeOptions) => {
     context: {
       formatString,
     },
-  })
+  });
 
   createPage({
     path: `/${basePath}/${blogPath}`.replace(/\/\/+/g, `/`),
@@ -267,12 +283,12 @@ exports.createPages = async ({ actions, graphql, reporter }, themeOptions) => {
     context: {
       formatString,
     },
-  })
+  });
 
   createPage({
     path: `/${basePath}/${tagsPath}`.replace(/\/\/+/g, `/`),
     component: tagsTemplate,
-  })
+  });
 
   const result = await graphql(`
     query {
@@ -292,14 +308,17 @@ exports.createPages = async ({ actions, graphql, reporter }, themeOptions) => {
         }
       }
     }
-  `)
+  `);
 
   if (result.errors) {
-    reporter.panicOnBuild(`There was an error loading your posts or pages`, result.errors)
-    return
+    reporter.panicOnBuild(
+      `There was an error loading your posts or pages`,
+      result.errors
+    );
+    return;
   }
 
-  const posts = result.data.allPost.nodes
+  const posts = result.data.allPost.nodes;
 
   posts.forEach((post) => {
     createPage({
@@ -309,10 +328,10 @@ exports.createPages = async ({ actions, graphql, reporter }, themeOptions) => {
         slug: post.slug,
         formatString,
       },
-    })
-  })
+    });
+  });
 
-  const pages = result.data.allPage.nodes
+  const pages = result.data.allPage.nodes;
 
   if (pages.length > 0) {
     pages.forEach((page) => {
@@ -322,23 +341,26 @@ exports.createPages = async ({ actions, graphql, reporter }, themeOptions) => {
         context: {
           slug: page.slug,
         },
-      })
-    })
+      });
+    });
   }
 
-  const tags = result.data.tags.group
+  const tags = result.data.tags.group;
 
   if (tags.length > 0) {
     tags.forEach((tag) => {
       createPage({
-        path: `/${basePath}/${tagsPath}/${kebabCase(tag.fieldValue)}`.replace(/\/\/+/g, `/`),
+        path: `/${basePath}/${tagsPath}/${kebabCase(tag.fieldValue)}`.replace(
+          /\/\/+/g,
+          `/`
+        ),
         component: tagTemplate,
         context: {
           slug: kebabCase(tag.fieldValue),
           name: tag.fieldValue,
           formatString,
         },
-      })
-    })
+      });
+    });
   }
-}
+};
